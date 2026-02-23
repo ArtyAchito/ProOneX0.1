@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ProOne — One Code. Infinite Universe.</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --cyan:    #00f5ff;
+      --magenta: #ff00ff;
+      --yellow:  #ffff00;
+      --green:   #00ff9f;
+      --deep:    #000010;
+    }
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Rajdhani', sans-serif;
+      background: var(--deep);
+      color: #fff;
+      overflow-x: hidden;
+      cursor: none;
+    }
+
+    /* ─── CUSTOM CURSOR ─── */
+    #cursor {
+      position: fixed; width:14px; height:14px;
+      border: 2px solid var(--cyan); border-radius: 50%;
+      pointer-events: none; z-index: 9999;
+      transform: translate(-50%,-50%);
+      transition: transform .12s, border-color .3s, width .2s, height .2s;
+      mix-blend-mode: screen;
+    }
+    #cursor-trail {
+      position: fixed; width:38px; height:38px;
+      border: 1px solid rgba(0,245,255,.25); border-radius: 50%;
+      pointer-events: none; z-index: 9998;
+      transform: translate(-50%,-50%);
+      transition: left .12s ease, top .12s ease;
+    }
+    body:has(button:hover) #cursor,
+    body:has(a:hover)      #cursor { transform: translate(-50%,-50%) scale(2.2); border-color: var(--magenta); }
+
+    /* ─── CANVAS LAYERS ─── */
+    #starfield { position:fixed; inset:0; width:100%; height:100%; z-index:-2; }
+    #nebula    { position:fixed; inset:0; width:100%; height:100%; z-index:-1; opacity:.55; }
+
+    /* ─── SCANLINES ─── */
+    body::after {
+      content:''; position:fixed; inset:0; pointer-events:none; z-index:60;
+      background: repeating-linear-gradient(0deg,
+        rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px,
+        rgba(0,245,255,.011) 2px, rgba(0,245,255,.011) 4px);
+    }
+
+    /* ─── NAV ─── */
+    nav {
+      position: fixed; top:0; left:0; right:0; z-index:500;
+      padding: 17px 5%;
+      display: flex; justify-content:space-between; align-items:center;
+      background: rgba(0,0,12,.82); backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(0,245,255,.14);
+    }
+    .logo {
+      font-family: 'Orbitron', monospace; font-size: 24px; font-weight: 900;
+      background: linear-gradient(90deg, var(--cyan), var(--magenta));
+      -webkit-background-clip: text; color: transparent; letter-spacing: 4px;
+    }
+    nav ul { display:flex; gap:28px; list-style:none; }
+    nav a {
+      color: rgba(255,255,255,.6); text-decoration:none;
+      font-weight:600; font-size:.82rem; letter-spacing:2px; text-transform:uppercase;
+      transition:.3s; position:relative;
+    }
+    nav a::after {
+      content:''; position:absolute; bottom:-4px; left:0; right:0;
+      height:1px; background:var(--cyan); transform:scaleX(0); transition:transform .3s;
+    }
+    nav a:hover { color:var(--cyan); }
+    nav a:hover::after { transform:scaleX(1); }
+    nav::before {
+      content:'◈ SYSTEM ONLINE ◈'; position:absolute; left:50%; transform:translateX(-50%); bottom:4px;
+      font-family:'Orbitron',monospace; font-size:.52rem; color:rgba(0,245,255,.32); letter-spacing:3px;
+    }
+
+    /* ─── HERO ─── */
+    .hero {
+      height:100vh; display:flex; align-items:center; justify-content:center;
+      text-align:center; position:relative; overflow:hidden;
+    }
+    /* Rings */
+    .ring {
+      position:absolute; border-radius:50%;
+      border:1px solid rgba(0,245,255,.1);
+      animation: spinRing linear infinite;
+    }
+    .ring::before {
+      content:''; position:absolute;
+      width:9px; height:9px; border-radius:50%;
+      top:-4.5px; left:50%; transform:translateX(-50%);
+      background:var(--cyan); box-shadow:0 0 12px var(--cyan);
+    }
+    .ring-1 { width:420px; height:420px; top:50%; left:50%; animation-duration:20s; }
+    .ring-2 { width:640px; height:640px; top:50%; left:50%; animation-duration:35s; animation-direction:reverse; border-color:rgba(255,0,255,.08); }
+    .ring-2::before { background:var(--magenta); box-shadow:0 0 12px var(--magenta); }
+    .ring-3 { width:880px; height:880px; top:50%; left:50%; animation-duration:55s; border-color:rgba(255,255,0,.05); }
+    .ring-3::before { background:var(--yellow); box-shadow:0 0 12px var(--yellow); }
+    @keyframes spinRing { from{transform:translate(-50%,-50%) rotate(0deg);} to{transform:translate(-50%,-50%) rotate(360deg);} }
+
+    /* Crosshair */
+    .crosshair { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:60px; height:60px; }
+    .crosshair::before { content:''; position:absolute; width:1px; height:100%; left:50%; background:rgba(0,245,255,.3); }
+    .crosshair::after  { content:''; position:absolute; height:1px; width:100%; top:50%;  background:rgba(0,245,255,.3); }
+
+    /* Corner brackets */
+    .c-tl,.c-tr,.c-bl,.c-br { position:absolute; width:44px; height:44px; border-style:solid; border-color:rgba(0,245,255,.38); }
+    .c-tl { top:90px;  left:5%;  border-width:2px 0 0 2px; }
+    .c-tr { top:90px;  right:5%; border-width:2px 2px 0 0; }
+    .c-bl { bottom:52px; left:5%;  border-width:0 0 2px 2px; }
+    .c-br { bottom:52px; right:5%; border-width:0 2px 2px 0; }
+
+    /* HUD readouts */
+    .hud { position:absolute; font-family:'Orbitron',monospace; font-size:.5rem; color:rgba(0,245,255,.38); letter-spacing:2px; line-height:2.3; }
+    .hud-l { left:5%; bottom:90px; text-align:left; }
+    .hud-r { right:5%; bottom:90px; text-align:right; }
+
+    /* Hero content */
+    .hero-content { z-index:10; position:relative; }
+    .eyebrow { font-family:'Orbitron',monospace; font-size:.65rem; letter-spacing:6px; color:var(--cyan); margin-bottom:20px; opacity:0; animation:fadeUp 1s .3s forwards; }
+    h1 {
+      font-family:'Orbitron',monospace; font-size:clamp(3.5rem,8vw,6.5rem); font-weight:900;
+      margin-bottom:10px;
+      background:linear-gradient(90deg,var(--cyan),var(--magenta),var(--yellow));
+      -webkit-background-clip:text; color:transparent;
+      filter:drop-shadow(0 0 32px rgba(0,245,255,.28));
+      opacity:0; animation:fadeUp 1s .6s forwards;
+    }
+    .tagline { font-size:1.5rem; font-weight:300; letter-spacing:4px; color:rgba(255,255,255,.7); margin-bottom:48px; opacity:0; animation:fadeUp 1s .9s forwards; }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(28px);} to{opacity:1;transform:translateY(0);} }
+
+    /* Glitch effect on h1 */
+    h1 { position:relative; }
+    h1::before, h1::after {
+      content:attr(data-text); position:absolute; top:0; left:0; width:100%;
+      background:linear-gradient(90deg,var(--cyan),var(--magenta),var(--yellow));
+      -webkit-background-clip:text; color:transparent;
+    }
+    h1::before { clip-path:polygon(0 30%,100% 30%,100% 50%,0 50%); animation:glitch1 5s infinite; }
+    h1::after  { clip-path:polygon(0 65%,100% 65%,100% 75%,0 75%); animation:glitch2 5s infinite; }
+    @keyframes glitch1 { 0%,88%,100%{transform:none;opacity:0;} 90%{transform:translateX(5px);opacity:1;} 94%{transform:translateX(-5px);opacity:1;} 96%{opacity:0;} }
+    @keyframes glitch2 { 0%,88%,100%{transform:none;opacity:0;} 91%{transform:translateX(-5px);opacity:1;} 95%{transform:translateX(5px);opacity:1;} 97%{opacity:0;} }
+
+    .btn-primary {
+      padding:15px 48px; font-family:'Orbitron',monospace; font-size:.8rem; letter-spacing:4px;
+      background:transparent; border:2px solid var(--cyan); color:var(--cyan);
+      cursor:none; transition:color .4s; position:relative; overflow:hidden;
+      opacity:0; animation:fadeUp 1s 1.2s forwards;
+    }
+    .btn-primary::before { content:''; position:absolute; inset:0; background:var(--cyan); transform:translateX(-101%); transition:transform .4s; z-index:-1; }
+    .btn-primary:hover { color:#000; }
+    .btn-primary:hover::before { transform:translateX(0); }
+
+    .scroll-hint { position:absolute; bottom:36px; left:50%; transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; gap:8px; opacity:0; animation:fadeUp 1s 2.2s forwards; }
+    .scroll-hint span { font-family:'Orbitron',monospace; font-size:.5rem; letter-spacing:4px; color:rgba(255,255,255,.28); }
+    .scroll-arrow { width:1px; height:40px; background:linear-gradient(to bottom,rgba(0,245,255,.5),transparent); animation:scrollPulse 2s ease-in-out infinite; }
+    @keyframes scrollPulse { 0%,100%{opacity:.3;} 50%{opacity:1;} }
+
+    /* ─── DIVIDER ─── */
+    .divider { height:1px; background:linear-gradient(90deg,transparent,rgba(0,245,255,.3),transparent); }
+
+    /* ─── SECTIONS ─── */
+    section {
+      padding:120px 5%; min-height:100vh;
+      display:flex; align-items:center; position:relative;
+    }
+    section::before {
+      content:''; position:absolute; left:5%; top:0; width:1px; height:100%;
+      background:linear-gradient(to bottom,transparent,rgba(0,245,255,.15),transparent);
+    }
+    .sec-label  { font-family:'Orbitron',monospace; font-size:.56rem; letter-spacing:5px; color:var(--cyan); margin-bottom:12px; display:block; }
+    .sec-title  { font-family:'Orbitron',monospace; font-size:clamp(1.8rem,4vw,2.8rem); font-weight:700; text-align:center; margin-bottom:14px; background:linear-gradient(90deg,var(--cyan),var(--magenta)); -webkit-background-clip:text; color:transparent; }
+    .sec-sub    { text-align:center; font-size:1.1rem; color:rgba(255,255,255,.48); max-width:620px; margin:0 auto 60px; font-weight:300; letter-spacing:1px; line-height:1.85; }
+
+    /* ─── EXPLORE / FEATURES ─── */
+    #explore { background:rgba(3,0,18,.85); flex-direction:column; }
+
+    .feature-grid {
+      display:grid; grid-template-columns:repeat(3,1fr); gap:2px;
+      max-width:1100px; margin:0 auto; border:1px solid rgba(0,245,255,.1);
+    }
+    @media(max-width:900px){ .feature-grid{ grid-template-columns:repeat(2,1fr); } }
+    @media(max-width:560px){ .feature-grid{ grid-template-columns:1fr; } }
+
+    .feat {
+      padding:38px 28px; background:rgba(0,8,24,.85);
+      border:1px solid rgba(0,245,255,.06); position:relative; overflow:hidden;
+      transition:background .4s, border-color .4s;
+    }
+    .feat::before {
+      content:''; position:absolute; top:0; left:0; right:0; height:2px;
+      background:linear-gradient(90deg,transparent,var(--cyan),transparent);
+      transform:scaleX(0); transition:transform .5s;
+    }
+    .feat:hover { background:rgba(0,245,255,.04); border-color:rgba(0,245,255,.2); }
+    .feat:hover::before { transform:scaleX(1); }
+    .feat-num { position:absolute; top:14px; right:18px; font-family:'Orbitron',monospace; font-size:.55rem; color:rgba(0,245,255,.18); letter-spacing:2px; }
+    .feat-icon { font-size:2.6rem; margin-bottom:14px; display:block; }
+    .feat h3   { font-family:'Orbitron',monospace; font-size:.85rem; letter-spacing:2px; color:var(--cyan); margin-bottom:10px; }
+    .feat p    { font-size:.95rem; color:rgba(255,255,255,.48); line-height:1.75; }
+
+    /* Data bars */
+    .data-bars { display:grid; grid-template-columns:1fr 1fr; gap:28px; max-width:1100px; margin:50px auto 0; }
+    @media(max-width:600px){ .data-bars{ grid-template-columns:1fr; } }
+    .db-label { display:flex; justify-content:space-between; font-family:'Orbitron',monospace; font-size:.58rem; letter-spacing:2px; color:rgba(255,255,255,.45); margin-bottom:7px; }
+    .db-track { height:3px; background:rgba(255,255,255,.06); position:relative; overflow:hidden; }
+    .db-fill  { height:100%; background:linear-gradient(90deg,var(--cyan),var(--magenta)); transform:scaleX(0); transform-origin:left; animation:fillBar 2.2s ease-out forwards; }
+    @keyframes fillBar { to{ transform:scaleX(1); } }
+
+    /* ─── AI CHAT ─── */
+    #ai-chat { background:rgba(0,4,14,.9); flex-direction:column; }
+
+    .chat-wrap { width:100%; max-width:920px; margin:0 auto; display:flex; flex-direction:column; border:1px solid rgba(0,245,255,.2); background:rgba(0,6,20,.97); position:relative; }
+    .chat-wrap::before { content:''; position:absolute; top:0; left:0; width:52px; height:52px; border-top:2px solid var(--cyan); border-left:2px solid var(--cyan); pointer-events:none; z-index:5; }
+    .chat-wrap::after  { content:''; position:absolute; bottom:0; right:0; width:52px; height:52px; border-bottom:2px solid var(--cyan); border-right:2px solid var(--cyan); pointer-events:none; z-index:5; }
+
+    .chat-bar { display:flex; align-items:center; justify-content:space-between; padding:13px 22px; background:rgba(0,245,255,.04); border-bottom:1px solid rgba(0,245,255,.14); }
+    .chat-bar-l { display:flex; align-items:center; gap:10px; }
+    .chat-bar-title { font-family:'Orbitron',monospace; font-size:.66rem; letter-spacing:3px; color:var(--cyan); }
+    .dot { width:7px; height:7px; border-radius:50%; background:var(--green); box-shadow:0 0 9px var(--green); animation:blink 2s ease-in-out infinite; flex-shrink:0; }
+    @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:.3;} }
+    .model-tag { font-family:'Orbitron',monospace; font-size:.53rem; color:rgba(255,255,255,.32); letter-spacing:2px; border:1px solid rgba(0,245,255,.14); padding:3px 10px; }
+
+    .chat-msgs { height:460px; overflow-y:auto; padding:26px 26px 12px; display:flex; flex-direction:column; gap:22px; scrollbar-width:thin; scrollbar-color:rgba(0,245,255,.18) transparent; }
+    .chat-msgs::-webkit-scrollbar { width:3px; }
+    .chat-msgs::-webkit-scrollbar-thumb { background:rgba(0,245,255,.18); }
+
+    .msg { display:flex; gap:14px; align-items:flex-start; animation:msgIn .35s ease; }
+    @keyframes msgIn { from{opacity:0;transform:translateY(10px);} to{opacity:1;transform:translateY(0);} }
+    .av { width:36px; height:36px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-family:'Orbitron',monospace; font-size:.55rem; font-weight:700; letter-spacing:1px; }
+    .msg.user .av { background:rgba(0,245,255,.1);  border:1px solid rgba(0,245,255,.4);  color:var(--cyan); }
+    .msg.ai   .av { background:rgba(255,0,255,.08); border:1px solid rgba(255,0,255,.35); color:var(--magenta); }
+    .mc { flex:1; }
+    .mn { font-family:'Orbitron',monospace; font-size:.53rem; letter-spacing:2px; margin-bottom:7px; }
+    .msg.user .mn { color:var(--cyan); }   .msg.ai .mn { color:var(--magenta); }
+    .mt { font-family:'Share Tech Mono',monospace; font-size:.9rem; line-height:1.78; color:rgba(255,255,255,.85); background:rgba(255,255,255,.022); border-left:2px solid transparent; padding:12px 16px; white-space:pre-wrap; word-wrap:break-word; }
+    .msg.user .mt { border-left-color:rgba(0,245,255,.35); }
+    .msg.ai   .mt { border-left-color:rgba(255,0,255,.35); }
+
+    .tcursor { display:inline-block; width:9px; height:15px; background:var(--magenta); margin-left:2px; animation:cblink .55s step-end infinite; vertical-align:text-bottom; }
+    @keyframes cblink { 0%,100%{opacity:1;} 50%{opacity:0;} }
+
+    .thinking { display:flex; gap:6px; padding:12px 16px; background:rgba(255,255,255,.022); border-left:2px solid rgba(255,0,255,.35); align-items:center; }
+    .thinking span { width:7px; height:7px; border-radius:50%; background:var(--magenta); animation:thDot 1.2s ease-in-out infinite; }
+    .thinking span:nth-child(2){animation-delay:.2s;} .thinking span:nth-child(3){animation-delay:.4s;}
+    @keyframes thDot { 0%,80%,100%{opacity:.2;transform:scale(.8);} 40%{opacity:1;transform:scale(1.2);} }
+
+    .chat-in-area { padding:16px 20px; border-top:1px solid rgba(0,245,255,.12); background:rgba(0,3,10,.97); }
+    .chat-in-row  { display:flex; gap:10px; align-items:center; }
+    .chat-in-wrap { flex:1; position:relative; border:1px solid rgba(0,245,255,.22); background:rgba(0,245,255,.025); transition:border-color .3s; }
+    .chat-in-wrap:focus-within { border-color:rgba(0,245,255,.65); }
+    .cmd-pre { position:absolute; left:13px; top:50%; transform:translateY(-50%); font-family:'Orbitron',monospace; font-size:.58rem; color:rgba(0,245,255,.45); letter-spacing:2px; pointer-events:none; }
+    .chat-in { width:100%; padding:13px 13px 13px 80px; background:transparent; border:none; outline:none; color:#fff; font-family:'Share Tech Mono',monospace; font-size:.9rem; letter-spacing:.5px; }
+    .chat-in::placeholder { color:rgba(255,255,255,.16); }
+
+    .send-btn { padding:13px 26px; font-family:'Orbitron',monospace; font-size:.68rem; letter-spacing:3px; background:transparent; border:2px solid var(--cyan); color:var(--cyan); cursor:none; transition:color .3s; position:relative; overflow:hidden; flex-shrink:0; }
+    .send-btn::before { content:''; position:absolute; inset:0; background:var(--cyan); transform:translateX(-101%); transition:transform .3s; z-index:-1; }
+    .send-btn:hover { color:#000; } .send-btn:hover::before { transform:translateX(0); }
+    .send-btn:disabled { border-color:rgba(0,245,255,.16); color:rgba(0,245,255,.16); }
+    .send-btn:disabled::before { display:none; }
+
+    .quick-btns { display:flex; gap:7px; flex-wrap:wrap; margin-top:10px; }
+    .q-btn { padding:5px 13px; font-family:'Orbitron',monospace; font-size:.5rem; letter-spacing:2px; background:transparent; border:1px solid rgba(0,245,255,.17); color:rgba(0,245,255,.52); cursor:none; transition:all .3s; }
+    .q-btn:hover { border-color:var(--cyan); color:var(--cyan); background:rgba(0,245,255,.05); }
+
+    /* ─── SOLAR SYSTEM ─── */
+    #solar { background:rgba(8,0,28,.8); }
+
+    .orbit-vis { position:relative; width:280px; height:280px; flex-shrink:0; }
+    .sun { position:absolute; width:56px; height:56px; border-radius:50%; top:50%; left:50%; transform:translate(-50%,-50%); background:radial-gradient(circle,#fff8c0,#ffaa00,#ff4400); box-shadow:0 0 44px #ffaa00,0 0 90px rgba(255,170,0,.28); animation:sunPulse 3s ease-in-out infinite; }
+    @keyframes sunPulse { 0%,100%{box-shadow:0 0 44px #ffaa00,0 0 90px rgba(255,170,0,.28);} 50%{box-shadow:0 0 66px #ffaa00,0 0 130px rgba(255,170,0,.48);} }
+    .o-ring { position:absolute; border-radius:50%; border:1px dashed rgba(255,255,255,.1); top:50%; left:50%; transform:translate(-50%,-50%); }
+    .o-planet { position:absolute; border-radius:50%; top:-8px; left:50%; margin-left:-8px; width:16px; height:16px; animation:orbit linear infinite; }
+    .or1{width:130px;height:130px;} .or2{width:195px;height:195px;} .or3{width:268px;height:268px;}
+    .op1{background:#4af;box-shadow:0 0 8px #4af;animation-duration:8s;}
+    .op2{background:#f64;box-shadow:0 0 8px #f64;animation-duration:14s;}
+    .op3{background:#fa4;box-shadow:0 0 8px #fa4;animation-duration:22s;width:14px;height:14px;top:-7px;margin-left:-7px;}
+    @keyframes orbit { from{transform:rotate(0deg);} to{transform:rotate(360deg);} }
+
+    .p-cards { flex:1; display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-left:50px; }
+    @media(max-width:700px){ .p-cards{ margin-left:0; margin-top:30px; } }
+    .p-card { background:rgba(0,8,28,.9); border:1px solid rgba(0,245,255,.12); padding:20px 18px; transition:.4s; position:relative; overflow:hidden; }
+    .p-card::after { content:''; position:absolute; bottom:0; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,var(--cyan),transparent); transform:scaleX(0); transition:transform .4s; }
+    .p-card:hover { transform:translateY(-6px); border-color:rgba(0,245,255,.35); }
+    .p-card:hover::after { transform:scaleX(1); }
+    .p-emoji { font-size:2.3rem; display:block; margin-bottom:8px; }
+    .p-card h3 { font-family:'Orbitron',monospace; font-size:.78rem; letter-spacing:2px; color:var(--cyan); margin-bottom:6px; }
+    .p-card p  { font-size:.85rem; color:rgba(255,255,255,.44); }
+    .p-stat    { margin-top:9px; font-family:'Orbitron',monospace; font-size:.5rem; color:rgba(0,245,255,.38); letter-spacing:1px; }
+
+    /* ─── STARS ─── */
+    #stars { background:rgba(0,0,8,.85); flex-direction:column; }
+
+    .star-grid { display:flex; gap:28px; flex-wrap:wrap; justify-content:center; max-width:1100px; margin:0 auto; }
+    .star-card { flex:1; min-width:200px; max-width:260px; text-align:center; padding:40px 20px; border:1px solid rgba(255,255,255,.07); transition:.4s; position:relative; overflow:hidden; }
+    .star-card::before { content:''; position:absolute; inset:0; background:rgba(255,255,255,.0); transition:background .4s; }
+    .star-card:hover { border-color:var(--magenta); transform:translateY(-10px); }
+    .star-card:hover::before { background:rgba(255,0,255,.03); }
+    .s-glow { width:60px; height:60px; border-radius:50%; margin:0 auto 20px; display:flex; align-items:center; justify-content:center; font-size:1.6rem; animation:sPulse 4s ease-in-out infinite; }
+    @keyframes sPulse { 0%,100%{transform:scale(1);} 50%{transform:scale(1.15);} }
+    .star-card h3 { font-family:'Orbitron',monospace; font-size:.78rem; letter-spacing:2px; margin-bottom:10px; }
+    .star-card p  { font-size:.9rem; color:rgba(255,255,255,.43); line-height:1.75; }
+    .s-temp { font-family:'Orbitron',monospace; font-size:.56rem; letter-spacing:2px; margin-top:12px; }
+
+    /* ─── FOOTER ─── */
+    footer {
+      text-align:center; padding:52px 5%;
+      background:rgba(0,0,4,.96); border-top:1px solid rgba(0,245,255,.1);
+      position:relative;
+    }
+    footer::before { content:'— ◈ —'; display:block; font-family:'Orbitron',monospace; font-size:.62rem; color:rgba(0,245,255,.28); letter-spacing:6px; margin-bottom:18px; }
+    .f-logo { font-family:'Orbitron',monospace; font-size:1.9rem; font-weight:900; background:linear-gradient(90deg,var(--cyan),var(--magenta)); -webkit-background-clip:text; color:transparent; letter-spacing:6px; margin-bottom:14px; }
+    .f-tag  { font-family:'Orbitron',monospace; font-size:.75rem; color:rgba(255,255,255,.28); letter-spacing:3px; }
+    .f-c    { position:absolute; font-family:'Orbitron',monospace; font-size:.5rem; color:rgba(0,245,255,.18); letter-spacing:2px; bottom:14px; }
+    .f-c.l  { left:5%; } .f-c.r { right:5%; }
+
+    /* ─── FLOATING PARTICLES & COMETS ─── */
+    .fp { position:fixed; pointer-events:none; border-radius:50%; animation:fpUp linear infinite; opacity:0; }
+    @keyframes fpUp { 0%{transform:translateY(0) scale(1);opacity:0;} 10%{opacity:.55;} 90%{opacity:.18;} 100%{transform:translateY(-100vh) scale(.25);opacity:0;} }
+    .comet { position:fixed; pointer-events:none; height:1px; background:linear-gradient(90deg,transparent,#fff); transform-origin:left center; z-index:2; opacity:0; animation:cometFly linear infinite; }
+    @keyframes cometFly { 0%{opacity:0;width:0;} 5%{opacity:1;} 45%{width:220px;opacity:.8;} 85%{width:320px;opacity:0;} 100%{opacity:0;} }
+  </style>
+</head>
+<body>
+
+  <!-- CURSOR -->
+  <div id="cursor"></div>
+  <div id="cursor-trail"></div>
+
+  <!-- CANVAS LAYERS -->
+  <canvas id="starfield"></canvas>
+  <canvas id="nebula"></canvas>
+
+  <!-- NAV -->
+  <nav>
+    <div class="logo">PRO◈ONE</div>
+    <ul>
+      <li><a href="#home">Home</a></li>
+      <li><a href="#explore">Explore</a></li>
+      <li><a href="#ai-chat">AI Command</a></li>
+      <li><a href="#solar">Solar System</a></li>
+      <li><a href="#stars">Stars</a></li>
+    </ul>
+  </nav>
+
+  <!-- ══════════ HERO ══════════ -->
+  <header class="hero" id="home">
+    <div class="ring ring-1"></div>
+    <div class="ring ring-2"></div>
+    <div class="ring ring-3"></div>
+    <div class="crosshair"></div>
+    <div class="c-tl"></div><div class="c-tr"></div>
+    <div class="c-bl"></div><div class="c-br"></div>
+    <div class="hud hud-l">
+      COORD: 26.43°N / 74.22°E<br>
+      ALT:&nbsp;&nbsp;400KM LEO<br>
+      VEL:&nbsp;&nbsp;7.66 KM/S<br>
+      ORBIT: STABLE ◈
+    </div>
+    <div class="hud hud-r">
+      MISSION: PROONE-01<br>
+      STATUS:&nbsp;NOMINAL<br>
+      FUEL:&nbsp;&nbsp;&nbsp;98.3%<br>
+      ◈ ALL SYSTEMS GO
+    </div>
+    <div class="hero-content">
+      <p class="eyebrow">◈ MISSION CONTROL ACTIVE ◈</p>
+      <h1 data-text="ProOne">ProOne</h1>
+      <p class="tagline">One Project &nbsp;·&nbsp; Infinite Universe</p>
+      <button class="btn-primary" onclick="document.getElementById('explore').scrollIntoView({behavior:'smooth'})">BEGIN JOURNEY →</button>
+    </div>
+    <div class="scroll-hint">
+      <span>SCROLL</span>
+      <div class="scroll-arrow"></div>
+    </div>
+  </header>
+
+  <div class="divider"></div>
+
+  <!-- ══════════ EXPLORE ══════════ -->
+  <section id="explore">
+    <div style="max-width:1100px;margin:auto;width:100%;text-align:center;">
+      <span class="sec-label">// SECTOR 01 — OVERVIEW</span>
+      <h2 class="sec-title">Welcome to the Cosmos</h2>
+      <p class="sec-sub">ProOne is your personal space explorer — built from scratch with HTML, CSS & JavaScript. Six modules. One mission. Infinite discovery.</p>
+
+      <div class="feature-grid">
+        <div class="feat"><span class="feat-num">01</span><span class="feat-icon">🌌</span><h3>Deep Space</h3><p>Navigate procedurally generated star fields and cosmic nebulae spanning light-years.</p></div>
+        <div class="feat"><span class="feat-num">02</span><span class="feat-icon">🛸</span><h3>Fleet Command</h3><p>Control spacecraft and manage missions across the entire solar system in real time.</p></div>
+        <div class="feat"><span class="feat-num">03</span><span class="feat-icon">📡</span><h3>Comms Array</h3><p>Real-time telemetry and communication with distant probes and orbital stations.</p></div>
+        <div class="feat"><span class="feat-num">04</span><span class="feat-icon">⚛️</span><h3>Warp Drive</h3><p>Experimental FTL propulsion systems designed for deep-space interstellar travel.</p></div>
+        <div class="feat"><span class="feat-num">05</span><span class="feat-icon">🔭</span><h3>Observatory</h3><p>Observe distant galaxies, black holes, and stellar nurseries in rendered real time.</p></div>
+        <div class="feat"><span class="feat-num">06</span><span class="feat-icon">🧬</span><h3>Xenobiology</h3><p>Catalog and study extraterrestrial life forms discovered across explored systems.</p></div>
+      </div>
+
+      <div class="data-bars">
+        <div><div class="db-label"><span>EXPLORATION PROGRESS</span><span>87%</span></div><div class="db-track"><div class="db-fill" style="width:87%"></div></div></div>
+        <div><div class="db-label"><span>STAR SYSTEMS MAPPED</span><span>63%</span></div><div class="db-track"><div class="db-fill" style="width:63%;animation-delay:.3s"></div></div></div>
+        <div><div class="db-label"><span>ANOMALIES DETECTED</span><span>44%</span></div><div class="db-track"><div class="db-fill" style="width:44%;animation-delay:.6s"></div></div></div>
+        <div><div class="db-label"><span>MISSIONS COMPLETE</span><span>91%</span></div><div class="db-track"><div class="db-fill" style="width:91%;animation-delay:.9s"></div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- ══════════ AI CHAT ══════════ -->
+  <section id="ai-chat">
+    <div style="max-width:920px;margin:auto;width:100%;text-align:center;">
+      <span class="sec-label">// SECTOR 02 — AI COMMAND INTERFACE</span>
+      <h2 class="sec-title">Mission AI</h2>
+      <p class="sec-sub">Direct uplink to the ProOne intelligence core. Ask anything about space, the cosmos, or your mission parameters.</p>
+
+      <div class="chat-wrap">
+        <!-- Top bar -->
+        <div class="chat-bar">
+          <div class="chat-bar-l">
+            <div class="dot"></div>
+            <div class="chat-bar-title">PROONE INTELLIGENCE CORE</div>
+          </div>
+          <div class="model-tag">CLAUDE · ONLINE</div>
+        </div>
+
+        <!-- Messages -->
+        <div class="chat-msgs" id="chatMsgs">
+          <div class="msg ai">
+            <div class="av">AI</div>
+            <div class="mc">
+              <div class="mn">◈ PROONE AI</div>
+              <div class="mt">Greetings, Commander. ProOne Intelligence Core is fully online. I am your deep-space AI assistant — ask me about planets, stars, black holes, space missions, or anything in the cosmos. The universe awaits your command.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Input -->
+        <div class="chat-in-area">
+          <div class="chat-in-row">
+            <div class="chat-in-wrap">
+              <span class="cmd-pre">CMD://</span>
+              <input class="chat-in" id="chatInput" type="text" placeholder="Enter your command..." maxlength="500" />
+            </div>
+            <button class="send-btn" id="sendBtn" onclick="sendMessage()">TRANSMIT</button>
+          </div>
+          <div class="quick-btns">
+            <button class="q-btn" onclick="qp('How big is the observable universe?')">◈ UNIVERSE SIZE</button>
+            <button class="q-btn" onclick="qp('Explain black holes in simple terms')">◈ BLACK HOLES</button>
+            <button class="q-btn" onclick="qp('What are the most exciting upcoming space missions?')">◈ MISSIONS</button>
+            <button class="q-btn" onclick="qp('Could there be life on Europa?')">◈ ALIEN LIFE</button>
+            <button class="q-btn" onclick="qp('What happens when two galaxies collide?')">◈ GALAXIES</button>
+            <button class="q-btn" onclick="qp('What is a neutron star?')">◈ NEUTRON STARS</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- ══════════ SOLAR SYSTEM ══════════ -->
+  <section id="solar">
+    <div style="max-width:1100px;margin:auto;display:flex;align-items:center;width:100%;flex-wrap:wrap;gap:40px;">
+      <div style="flex:1;min-width:280px;">
+        <span class="sec-label">// SECTOR 03 — OUR SYSTEM</span>
+        <h2 class="sec-title" style="text-align:left;">Solar System</h2>
+        <p class="sec-sub" style="text-align:left;margin:0 0 40px;">Eight planets, one star, and billions of secrets waiting to be uncovered by the ProOne mission.</p>
+        <div class="orbit-vis">
+          <div class="sun"></div>
+          <div class="o-ring or1"><div class="o-planet op1"></div></div>
+          <div class="o-ring or2"><div class="o-planet op2"></div></div>
+          <div class="o-ring or3"><div class="o-planet op3"></div></div>
+        </div>
+      </div>
+      <div class="p-cards">
+        <div class="p-card"><span class="p-emoji">🌍</span><h3>Earth</h3><p>The Blue Marble — cradle of all known life.</p><div class="p-stat">1.00 AU · ORBIT: 365 DAYS</div></div>
+        <div class="p-card"><span class="p-emoji">🔴</span><h3>Mars</h3><p>The Red Planet — humanity's next frontier.</p><div class="p-stat">1.52 AU · ORBIT: 687 DAYS</div></div>
+        <div class="p-card"><span class="p-emoji">♃</span><h3>Jupiter</h3><p>King of Planets — 79 moons and counting.</p><div class="p-stat">5.20 AU · ORBIT: 12 YEARS</div></div>
+        <div class="p-card"><span class="p-emoji">🪐</span><h3>Saturn</h3><p>Ringed Beauty — rings spanning 282,000 km.</p><div class="p-stat">9.58 AU · ORBIT: 29 YEARS</div></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- ══════════ STARS ══════════ -->
+  <section id="stars">
+    <div style="max-width:1100px;margin:auto;width:100%;text-align:center;">
+      <span class="sec-label">// SECTOR 04 — STELLAR CLASSIFICATION</span>
+      <h2 class="sec-title">Types of Stars</h2>
+      <p class="sec-sub">From burning blue giants to fading white dwarfs, the universe's furnaces come in every flavor imaginable.</p>
+
+      <div class="star-grid">
+        <div class="star-card">
+          <div class="s-glow" style="background:radial-gradient(circle,#fff,#9bb5ff,#2040c0);box-shadow:0 0 32px #5070ff">⭐</div>
+          <h3 style="color:#9bb5ff">Blue Giant</h3>
+          <p>Massive, luminous and short-lived. Burns brilliantly and explodes in millions of years.</p>
+          <div class="s-temp" style="color:#9bb5ff">TEMP: 25,000–50,000K</div>
+        </div>
+        <div class="star-card">
+          <div class="s-glow" style="background:radial-gradient(circle,#fffde0,#fff0a0,#ffcc00);box-shadow:0 0 32px #ffcc00">☀️</div>
+          <h3 style="color:#ffcc00">Yellow Dwarf</h3>
+          <p>Our Sun's class. Stable and life-supporting, with billions of years of fuel remaining.</p>
+          <div class="s-temp" style="color:#ffcc00">TEMP: 5,000–6,000K</div>
+        </div>
+        <div class="star-card">
+          <div class="s-glow" style="background:radial-gradient(circle,#ffccaa,#ff8844,#cc3300);box-shadow:0 0 32px #ff6633">🔴</div>
+          <h3 style="color:#ff8844">Red Dwarf</h3>
+          <p>The most common star in the galaxy. Cool, dim, and remarkably long-lived across trillions of years.</p>
+          <div class="s-temp" style="color:#ff8844">TEMP: 2,400–3,700K</div>
+        </div>
+        <div class="star-card">
+          <div class="s-glow" style="background:radial-gradient(circle,#fff,#ccc,#888);box-shadow:0 0 28px rgba(255,255,255,.35)">💫</div>
+          <h3 style="color:#aaa">White Dwarf</h3>
+          <p>A stellar remnant after death. Impossibly dense, slowly cooling across eons of cosmic time.</p>
+          <div class="s-temp" style="color:#aaa">TEMP: 8,000–40,000K</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- ══════════ FOOTER ══════════ -->
+  <footer>
+    <div class="f-logo">PRO◈ONE</div>
+    <div class="f-tag">ONE CODE &nbsp;·&nbsp; INFINITE UNIVERSE &nbsp;·&nbsp; 2026</div>
+    <div class="f-c l">LAT: 26.43°N / LON: 74.22°E</div>
+    <div class="f-c r">MADE WITH ❤️ BY ARTY</div>
+  </footer>
+
+  <script>
+    // ═══════════════════════════════════════
+    //  CURSOR
+    // ═══════════════════════════════════════
+    const $cur   = document.getElementById('cursor');
+    const $trail = document.getElementById('cursor-trail');
+    document.addEventListener('mousemove', e => {
+      $cur.style.left   = e.clientX + 'px';
+      $cur.style.top    = e.clientY + 'px';
+      setTimeout(() => {
+        $trail.style.left = e.clientX + 'px';
+        $trail.style.top  = e.clientY + 'px';
+      }, 85);
+    });
+    document.querySelectorAll('button, a, input').forEach(el => {
+      el.addEventListener('mouseenter', () => { $cur.style.transform='translate(-50%,-50%) scale(2.2)'; $cur.style.borderColor='#ff00ff'; });
+      el.addEventListener('mouseleave', () => { $cur.style.transform='translate(-50%,-50%) scale(1)';   $cur.style.borderColor='#00f5ff'; });
+    });
+
+    // ═══════════════════════════════════════
+    //  STARFIELD
+    // ═══════════════════════════════════════
+    const sc  = document.getElementById('starfield');
+    const sctx = sc.getContext('2d');
+    let stars = [];
+    function resizeSC() { sc.width = window.innerWidth; sc.height = window.innerHeight; }
+    class Star {
+      constructor() { this.reset(); }
+      reset() {
+        this.x     = Math.random() * sc.width;
+        this.y     = Math.random() * sc.height;
+        this.sz    = Math.random() * 1.9 + 0.3;
+        this.phase = Math.random() * Math.PI * 2;
+        this.spd   = Math.random() * 0.013 + 0.004;
+        this.col   = ['255,255,255','175,215,255','255,215,175'][Math.floor(Math.random()*3)];
+      }
+      update() { this.phase += this.spd; this.op = Math.sin(this.phase) * 0.42 + 0.58; }
+      draw()   { sctx.fillStyle = `rgba(${this.col},${this.op})`; sctx.fillRect(this.x, this.y, this.sz, this.sz); }
+    }
+    function initStars() { stars = []; for(let i=0;i<1100;i++) stars.push(new Star()); }
+    function animStars() {
+      sctx.fillStyle = 'rgba(0,0,5,0.22)';
+      sctx.fillRect(0, 0, sc.width, sc.height);
+      stars.forEach(s => { s.update(); s.draw(); });
+      requestAnimationFrame(animStars);
+    }
+
+    // ═══════════════════════════════════════
+    //  NEBULA
+    // ═══════════════════════════════════════
+    const nc   = document.getElementById('nebula');
+    const nctx = nc.getContext('2d');
+    function drawNebula() {
+      nc.width = window.innerWidth; nc.height = window.innerHeight;
+      const W = nc.width, H = nc.height;
+      [
+        [W*.15, H*.28, 360, [48,0,115]],
+        [W*.78, H*.48, 310, [0,78,118]],
+        [W*.5,  H*.82, 290, [76,0,98]],
+        [W*.88, H*.14, 240, [55,18,88]],
+        [W*.35, H*.6,  200, [0,55,85]]
+      ].forEach(([x,y,r,c]) => {
+        const g = nctx.createRadialGradient(x,y,0,x,y,r);
+        g.addColorStop(0,   `rgba(${c},0.48)`);
+        g.addColorStop(0.5, `rgba(${c},0.12)`);
+        g.addColorStop(1,   `rgba(0,0,0,0)`);
+        nctx.fillStyle = g;
+        nctx.fillRect(0, 0, W, H);
+      });
+    }
+
+    // ═══════════════════════════════════════
+    //  FLOATING PARTICLES
+    // ═══════════════════════════════════════
+    const PCOLS = ['#00f5ff','#ff00ff','#ffff00','#ffffff','#00ff9f'];
+    function spawnParticle() {
+      const p = document.createElement('div'); p.className = 'fp';
+      const s = Math.random()*3+1;
+      p.style.cssText = `left:${Math.random()*100}vw;bottom:-10px;width:${s}px;height:${s}px;background:${PCOLS[Math.floor(Math.random()*PCOLS.length)]};animation-duration:${Math.random()*16+10}s;animation-delay:${Math.random()*4}s;`;
+      document.body.appendChild(p);
+      setTimeout(() => p.remove(), 24000);
+    }
+    setInterval(spawnParticle, 650);
+
+    // ═══════════════════════════════════════
+    //  COMETS
+    // ═══════════════════════════════════════
+    function spawnComet() {
+      const c = document.createElement('div'); c.className = 'comet';
+      c.style.cssText = `top:${Math.random()*65}vh;left:-320px;transform:rotate(${Math.random()*30-15}deg);animation-duration:${Math.random()*5+5}s;animation-delay:${Math.random()*2}s;`;
+      document.body.appendChild(c);
+      setTimeout(() => c.remove(), 12000);
+    }
+    setInterval(spawnComet, 3800);
+    spawnComet(); spawnComet();
+
+    // Init everything
+    window.addEventListener('resize', () => { resizeSC(); initStars(); drawNebula(); });
+    resizeSC(); initStars(); animStars(); drawNebula();
+
+    // ═══════════════════════════════════════
+    //  AI CHAT ENGINE
+    // ═══════════════════════════════════════
+    const $msgs    = document.getElementById('chatMsgs');
+    const $input   = document.getElementById('chatInput');
+    const $sendBtn = document.getElementById('sendBtn');
+    let history    = [];
+    let busy       = false;
+
+    function scrollBot() { $msgs.scrollTo({ top: $msgs.scrollHeight, behavior:'smooth' }); }
+
+    function esc(t) { return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    function addMsg(role, text) {
+      const d = document.createElement('div'); d.className = 'msg ' + role;
+      const isAI = role === 'ai';
+      d.innerHTML = `
+        <div class="av">${isAI ? 'AI' : 'YOU'}</div>
+        <div class="mc">
+          <div class="mn">${isAI ? '◈ PROONE AI' : '◈ COMMANDER'}</div>
+          <div class="mt">${esc(text)}</div>
+        </div>`;
+      $msgs.appendChild(d); scrollBot();
+    }
+
+    function showThinking() {
+      const d = document.createElement('div'); d.className='msg ai'; d.id='thinking';
+      d.innerHTML = `<div class="av">AI</div><div class="mc"><div class="mn">◈ PROONE AI</div><div class="thinking"><span></span><span></span><span></span></div></div>`;
+      $msgs.appendChild(d); scrollBot();
+    }
+    function hideThinking() { const t=document.getElementById('thinking'); if(t) t.remove(); }
+
+    async function typewrite(el, text) {
+      el.innerHTML = '';
+      const cur = document.createElement('span'); cur.className = 'tcursor';
+      el.appendChild(cur);
+      let i = 0;
+      return new Promise(resolve => {
+        const next = () => {
+          if (i < text.length) {
+            const chunk = text.slice(i, i+2);
+            el.insertBefore(document.createTextNode(chunk), cur);
+            i += chunk.length;
+            scrollBot();
+            setTimeout(next, Math.random()*13 + 4);
+          } else { cur.remove(); resolve(); }
+        };
+        next();
+      });
+    }
+
+    async function sendMessage() {
+      const text = $input.value.trim();
+      if (!text || busy) return;
+      busy = true; $sendBtn.disabled = true; $input.value = '';
+
+      addMsg('user', text);
+      history.push({ role:'user', content:text });
+      showThinking();
+
+      try {
+        const res  = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json' },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 1000,
+            system: `You are ProOne AI, the advanced intelligence core of the ProOne mission control system. You have expert-level knowledge of astronomy, astrophysics, cosmology, space exploration, planetary science, and the history of spaceflight. Respond in an engaging, slightly dramatic way — you may be poetic about the cosmos while remaining scientifically accurate. Keep responses to 2–3 paragraphs of flowing prose. Never use markdown headers or bullet lists. Occasionally address the user as "Commander" to maintain the space-mission atmosphere.`,
+            messages: history
+          })
+        });
+
+        const data = await res.json();
+        hideThinking();
+        const aiText = data.content?.[0]?.text || '⚠ Signal lost. Please re-transmit your query, Commander.';
+
+        // Build streamed AI bubble
+        const d = document.createElement('div'); d.className = 'msg ai';
+        d.innerHTML = `<div class="av">AI</div><div class="mc"><div class="mn">◈ PROONE AI</div><div class="mt" id="ai-out"></div></div>`;
+        $msgs.appendChild(d); scrollBot();
+
+        await typewrite(document.getElementById('ai-out'), aiText);
+        document.getElementById('ai-out').id = '';
+        history.push({ role:'assistant', content:aiText });
+
+      } catch(e) {
+        hideThinking();
+        addMsg('ai', '⚠ Communication array malfunction. Unable to reach intelligence core. Check your connection and try again, Commander.');
+      }
+
+      busy = false; $sendBtn.disabled = false; $input.focus();
+    }
+
+    function qp(t) { $input.value = t; sendMessage(); }
+    $input.addEventListener('keydown', e => { if(e.key==='Enter') sendMessage(); });
+  </script>
+</body>
+</html>
